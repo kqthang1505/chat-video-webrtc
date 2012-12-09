@@ -1,7 +1,7 @@
 chat video WebRTC
 =================
 
-chat video using HTML5 WebRTC
+chat video using HTML5 WebRTC and NodeJS.
 
 Installation
 ------------
