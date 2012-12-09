@@ -6,5 +6,5 @@ chat video using HTML5 WebRTC
 Installation
 ------------
 
-npm install websocket
-node server.js
+  npm install websocket
+  node server.js
