@@ -11,12 +11,12 @@ html, body{
 
 @font-face {
     font-family: 'HYPost-Light';
-
+/*
 	src: local('HYPost-Light'), url('hypost-light.eot');
 	src: local('HYPost-Light'), url('hypost-light.eot?#iefix') format('embedded-opentype'),
 			 url('hypost-light.woff') format('woff'),
 			 url('hypost-light.ttf') format('truetype'),
-			 url('hypost-light.svg#hypost-light') format('svg');
+			 url('hypost-light.svg#hypost-light') format('svg');*/
 
     font-weight:400;
 }
