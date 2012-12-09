@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>chat video using WebRTC</title>
+    <link href="style.css" rel="stylesheet" type="text/css">
+    <link href='http://fonts.googleapis.com/css?family=Strait' rel='stylesheet' type='text/css'>
+</head>
+<body>
+
+    <div id="text">      
+        <div id="chrome">
+            (<a href="http://www.google.com/intl/en/chrome/browser/" target="_blank">Chrome</a> navigator only supported)
+            <br /><br />
+            <div style="color:#2CA34C;"><strong><div id="client_count">0</div></strong> people connected</div>
+        </div>
+    </div>
+
+    <div id="cam">
+        <div id="cam1">
+            <video id="sourcevid" autoplay width="320" height="240"></video>
+        </div>
+
+        <div id="cam2">
+            <video id="remotevid" autoplay width="320" height="240"></video>
+        </div>
+    </div>
+
+    <div id="nextbutton">
+        <a href="javascript:next();" id="next">Next</a>
+    </div>
+
+    <div id="status">Starting camera</div>
+
+    <script src="js/john.js"></script>
+
+</body>
+</html>
