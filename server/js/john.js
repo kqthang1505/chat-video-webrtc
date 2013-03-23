@@ -8,7 +8,7 @@ var videoRemote = document.getElementById('remotevid');
 
 /***********************/
 
-var webSocketServer = "ws://42pix.local:8080";
+var webSocketServer = "ws://127.0.0.1:8080";
 var peerConnectionConfiguration = { iceServers: [{ url: 'stun:stun.l.google.com:19302' }] };
 
 var STATES = { WAITING: 'Waiting other client', IN_PROGRESS: 'Connection in progress...', CONNECTED: 'Connected', ERROR: 'Error' };
