@@ -50,7 +50,7 @@ function startVideo(){
 function onStartVideoSuccess(stream){
   console.log("Local video started");
   localStream = stream;
-  videoLocal.src = window.webkitURL.createObjectURL(stream);
+  videoLocal.src = URL.createObjectURL(stream);
 
   startNewConnection();
 }
@@ -153,7 +153,7 @@ function onPeerConnectionIceCandidate(peerConnectionIceEvent){
 
 function onPeerConnectionAddStream(mediaStreamEvent){
   console.log("onPeerConnectionAddStream");
-  videoRemote.src = window.webkitURL.createObjectURL(mediaStreamEvent.stream);
+  videoRemote.src = URL.createObjectURL(mediaStreamEvent.stream);
   setStatus(STATES.CONNECTED);
 }
 
