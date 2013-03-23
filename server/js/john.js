@@ -1,153 +1,184 @@
-var sourcevid = document.getElementById('sourcevid');
-var remotevid = document.getElementById('remotevid');
-var status_coonection = document.getElementById('status');
-var client_count = document.getElementById('client_count');
+// http://dev.w3.org/2011/webrtc/editor/webrtc.html
 
-var stunServer = "stun.l.google.com:19302";
-var socketServer = "ws://127.0.0.1:8080";
+var statusBar = document.getElementById('status');
+var clientsCount = document.getElementById('client_count');
 
-var mediaConstraints = {'has_audio':true, 'has_video':true};
+var videoLocal = document.getElementById('sourcevid');
+var videoRemote = document.getElementById('remotevid');
 
-var socket;
-var localStream = null;
-var peerConn = null;
+/***********************/
 
-var STATES = {WAITING:'Waiting other client', IN_PROGRESS:'Connection in progress...', CONNECTED:'Connected', ERROR_NAV:'Your navigator is not compatible'};
+var webSocketServer = "ws://42pix.local:8080";
+var peerConnectionConfiguration = { iceServers: [{ url: 'stun:stun.l.google.com:19302' }] };
 
-var logg = function(s) { console.log(s); };
+var STATES = { WAITING: 'Waiting other client', IN_PROGRESS: 'Connection in progress...', CONNECTED: 'Connected', ERROR: 'Error' };
 
-function updateState(current_state){
-  console.log(current_state);
-  status_coonection.innerHTML = current_state;
-}
+/***********************/
 
-function startVideo(){
-  function successCallback(stream) {
-    sourcevid.src = window.webkitURL.createObjectURL(stream);
-    sourcevid.style.webkitTransform = "rotateY(180deg)";
-    localStream = stream;
+var localStream;
+var webSocket;
+var peerConnection;
 
-    socket = new WebSocket(socketServer);
-    socket.addEventListener("message", onMessage, false);
-    updateState(STATES.WAITING);
-  }
-  function errorCallback(error) {
-    logg('An error occurred: [CODE ' + error.code + ']');
-    updateState(STATES.ERROR_NAV);
-  }
-  try {
-    navigator.webkitGetUserMedia({audio: true, video: true}, successCallback, errorCallback);
-  }catch(e) {
-    try{
-      navigator.webkitGetUserMedia("video,audio", successCallback, errorCallback);
-    }catch(e){
-      updateState(STATES.ERROR_NAV);
-    }
-  }
-}
-
-function sendMessage(message) {
-  var mymsg = JSON.stringify(message);
-  logg("SEND: " + mymsg);
-  socket.send(mymsg);
-}
-
-function setLocalAndSendMessage(sessionDescription) {
-  peerConn.setLocalDescription(sessionDescription);
-  sendMessage(sessionDescription);
-}
-
-function onIceCandidate(event) {
-  if(event.candidate){
-    sendMessage({type: 'candidate', sdpMLineIndex: event.candidate.sdpMLineIndex, sdpMid: event.candidate.sdpMid, candidate: event.candidate.candidate});
-  }else{
-    logg("End of candidates");
-  }
-}
-
-function onRemoteStreamAdded(event) {
-  logg("Added remote stream");
-  remotevid.src = window.webkitURL.createObjectURL(event.stream);
-  updateState(STATES.CONNECTED);
-}
-
-function onRemoteStreamRemoved(event) {
-  logg("Remove remote stream");
-  next();
-}
-
-function createPeerConnection(){
-  try {
-    updateState(STATES.IN_PROGRESS);
-    logg("Creating peer connection");
-    peerConn = new webkitRTCPeerConnection({'iceServers':[{'url':'stun:' + stunServer}]});
-    peerConn.onicecandidate = onIceCandidate;
-    peerConn.onaddstream = onRemoteStreamAdded;
-    peerConn.onremovestream = onRemoteStreamRemoved;
-  }catch(e){
-    logg("Failed to create PeerConnection, exception: " + e.message);
-  }
-}
-
-function onMessage(event) {
-  logg("RECEIVED: " + event.data);
-
-  var msg = JSON.parse(event.data);
-
-  if(msg.type == 'client_count'){
-    client_count.innerHTML = msg.value;
-  }else if(msg.type == 'do_call'){
-    createPeerConnection();
-    peerConn.addStream(localStream);
-    peerConn.createOffer(setLocalAndSendMessage, null, mediaConstraints);
-  }else if(msg.type == 'wait'){
-    if(peerConn){
-      peerConn.close();
-    }
-    peerConn = null;
-    remotevid.src = ''; 
-    updateState(STATES.WAITING);
-  }else if(msg.type == 'offer'){
-    createPeerConnection();
-    peerConn.addStream(localStream);
-    peerConn.setRemoteDescription(new RTCSessionDescription(msg));
-    peerConn.createAnswer(setLocalAndSendMessage, null, mediaConstraints);
-  }else if(peerConn){
-    if(msg.type == 'answer'){
-      peerConn.setRemoteDescription(new RTCSessionDescription(msg));
-    }else if(msg.type == 'candidate') {
-      var candidate = new RTCIceCandidate({sdpMLineIndex:msg.sdpMLineIndex, candidate:msg.candidate, sdpMid: msg.sdpMid});
-      peerConn.addIceCandidate(candidate);
-    }else{
-      console.log('Message unknown with peer: ' + msg.type);
-    }    
-  }else{
-    console.log('Message unknown: ' + msg.type);
-  }  
-}
+/***********************/
 
 startVideo();
 
-function next(){
-  if(peerConn){
-    peerConn.close();
-  }
-  peerConn = null;
-  remotevid.src = ''; 
-
-  if(socket){
-    socket.close();
-  }
-
-  socket = new WebSocket(socketServer);
-  socket.addEventListener();
-  socket.addEventListener("message", onMessage, false);
-  updateState(STATES.WAITING);
-
-  document.getElementById('next').href = "javascript:true;";
-  setTimeout(onOpen, 2000);
+function setStatus(state){
+  statusBar.innerHTML = state;
 }
- 
-function onOpen(){
-  document.getElementById('next').href = "javascript:next();";
+
+function clearContext(){
+  videoRemote.src = '';
+
+  if(webSocket){
+    webSocket.close();
+  }
+  if(peerConnection){
+    peerConnection.close();
+  }
+
+  webSocket = null;
+  peerConnection = null;
+}
+
+/***********************/
+
+function startVideo(){
+  navigator.webkitGetUserMedia({audio: true, video: true}, onStartVideoSuccess, onStartVideoError);
+}
+
+function onStartVideoSuccess(stream){
+  console.log("Local video started");
+  localStream = stream;
+  videoLocal.src = window.webkitURL.createObjectURL(stream);
+
+  startNewConnection();
+}
+
+function onStartVideoError(){
+  console.log("Cannot start video");
+  setStatus(STATES.ERROR);
+}
+
+function onStreamLocalEnded(){
+  console.log("Stream local ended");
+  setStatus(STATES.ERROR);
+}
+
+/***********************/
+
+function startNewConnection(){
+  clearContext();
+
+  webSocket = new WebSocket(webSocketServer);
+
+  webSocket.onopen = onSocketOpen;
+  webSocket.onerror = onSocketError;
+  webSocket.onclose = onSocketClose;
+  webSocket.onmessage = onSocketMessage;
+}
+
+function onSocketOpen(){
+  console.log("Socket open");
+  setStatus(STATES.WAITING);
+}
+
+function onSocketError(){
+  console.log("Socket error");
+  setStatus(STATES.ERROR);
+}
+
+function onSocketClose(){
+  console.log("Socket close");
+}
+
+function onSocketMessage(event){
+  var message = JSON.parse(event.data);
+  console.log("RECEIVE: " + message.type);
+
+  if(message.type == 'do_call'){
+    createPeerConnection();
+    peerConnection.addStream(localStream);
+    peerConnection.createOffer(onPeerConnectionCreateOfferSuccess, onPeerConnectionCreateOfferError);
+  }else if(message.type == 'offer'){
+    createPeerConnection();
+    peerConnection.addStream(localStream);
+    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+    peerConnection.createAnswer(onPeerConnectionCreateAnswerSuccess, onPeerConnectionCreateAnswerError, null);
+  }else if(message.type == 'answer'){
+    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+  }else if(message.type == 'candidate') {
+    var candidate = new RTCIceCandidate({
+      sdpMLineIndex: message.sdpMLineIndex, 
+      candidate: message.candidate, 
+      sdpMid: message.sdpMid
+    });
+    peerConnection.addIceCandidate(candidate);
+  }else if(message.type == 'clients_count'){
+    clientsCount.innerHTML = message.count;
+  }else{
+    console.log("Unknow message: " + message.type);
+  }
+}
+
+/***********************/
+
+function createPeerConnection(){
+  console.log("createPeerConnection");
+  setStatus(STATES.IN_PROGRESS);
+
+  peerConnection = new webkitRTCPeerConnection(peerConnectionConfiguration);
+  peerConnection.onicecandidate = onPeerConnectionIceCandidate;
+  peerConnection.onaddstream = onPeerConnectionAddStream;
+  peerConnection.removestream = onPeerConnectionRemoveStream;
+}
+
+function peerConnectionSendMessage(message) {
+  var json = JSON.stringify(message);
+  console.log("SEND: " + json);
+  webSocket.send(json);
+}
+
+function onPeerConnectionIceCandidate(peerConnectionIceEvent){
+  console.log("onPeerConnectionIceCandidate");
+  if(peerConnectionIceEvent.candidate){
+    peerConnectionSendMessage({
+      type: 'candidate', 
+      sdpMLineIndex: peerConnectionIceEvent.candidate.sdpMLineIndex,
+      sdpMid: peerConnectionIceEvent.candidate.sdpMid,
+      candidate: peerConnectionIceEvent.candidate.candidate
+    });
+  }
+}
+
+function onPeerConnectionAddStream(mediaStreamEvent){
+  console.log("onPeerConnectionAddStream");
+  videoRemote.src = window.webkitURL.createObjectURL(mediaStreamEvent.stream);
+  setStatus(STATES.CONNECTED);
+}
+
+function onPeerConnectionRemoveStream(mediaStreamEvent){
+  console.log("onPeerConnectionRemoveStream");
+}
+
+function onPeerConnectionCreateOfferSuccess(sessionDescription){
+  console.log("onPeerConnectionCreateOfferSuccess");
+  peerConnection.setLocalDescription(sessionDescription);
+  peerConnectionSendMessage(sessionDescription);
+}
+
+function onPeerConnectionCreateOfferError(error){
+  console.log("onPeerConnectionCreateOfferError");
+  setStatus(STATES.ERROR);
+}
+
+function onPeerConnectionCreateAnswerSuccess(sessionDescription){
+  console.log("onPeerConnectionCreateAnswerSuccess");
+  peerConnection.setLocalDescription(sessionDescription);
+  peerConnectionSendMessage(sessionDescription);
+}
+
+function onPeerConnectionCreateAnswerError(error){
+  console.log("onPeerConnectionCreateAnswerError");
+  setStatus(STATES.ERROR);
 }
