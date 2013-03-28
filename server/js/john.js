@@ -1,4 +1,7 @@
 // http://dev.w3.org/2011/webrtc/editor/webrtc.html
+// http://www.webrtc.org/interop
+
+// http://habrahabr.ru/post/171477/
 
 var statusBar = document.getElementById('status');
 var clientsCount = document.getElementById('client_count');
@@ -11,7 +14,7 @@ var videoRemote = document.getElementById('remotevid');
 var webSocketServer = "ws://127.0.0.1:8080";
 var peerConnectionConfiguration = { iceServers: [{ url: 'stun:stun.l.google.com:19302' }] };
 
-var STATES = { WAITING: 'Waiting other client', IN_PROGRESS: 'Connection in progress...', CONNECTED: 'Connected', ERROR: 'Error' };
+var STATES = { WAITING: 'Waiting other client', IN_PROGRESS: 'Connection in progress...', CONNECTED: 'Connected', ERROR: 'Error', UNSUPPORTED: 'Your navigator is unsupported' };
 
 /***********************/
 
@@ -44,13 +47,15 @@ function clearContext(){
 /***********************/
 
 function startVideo(){
-  navigator.webkitGetUserMedia({audio: true, video: true}, onStartVideoSuccess, onStartVideoError);
+  compatGetUserMedia({ audio: true, video: true }, onStartVideoSuccess, onStartVideoError);
 }
 
 function onStartVideoSuccess(stream){
   console.log("Local video started");
+
   localStream = stream;
-  videoLocal.src = URL.createObjectURL(stream);
+  setStreamToElement(stream, videoLocal);
+  videoLocal.play();
 
   startNewConnection();
 }
@@ -94,7 +99,8 @@ function onSocketClose(){
 
 function onSocketMessage(event){
   var message = JSON.parse(event.data);
-  console.log("RECEIVE: " + message.type);
+
+  console.log("RECEIVE: " + event.data);
 
   if(message.type == 'do_call'){
     createPeerConnection();
@@ -103,14 +109,14 @@ function onSocketMessage(event){
   }else if(message.type == 'offer'){
     createPeerConnection();
     peerConnection.addStream(localStream);
-    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+    peerConnection.setRemoteDescription(compatRTCSessionDescription(message));
     peerConnection.createAnswer(onPeerConnectionCreateAnswerSuccess, onPeerConnectionCreateAnswerError, null);
   }else if(message.type == 'answer'){
-    peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+    peerConnection.setRemoteDescription(compatRTCSessionDescription(message));
   }else if(message.type == 'candidate') {
-    var candidate = new RTCIceCandidate({
+    var candidate = compatRTCIceCandidate({
       sdpMLineIndex: message.sdpMLineIndex, 
-      candidate: message.candidate, 
+      candidate: message.candidate,
       sdpMid: message.sdpMid
     });
     peerConnection.addIceCandidate(candidate);
@@ -127,10 +133,10 @@ function createPeerConnection(){
   console.log("createPeerConnection");
   setStatus(STATES.IN_PROGRESS);
 
-  peerConnection = new webkitRTCPeerConnection(peerConnectionConfiguration);
+  peerConnection = compatRTCPeerConnection(peerConnectionConfiguration);
   peerConnection.onicecandidate = onPeerConnectionIceCandidate;
   peerConnection.onaddstream = onPeerConnectionAddStream;
-  peerConnection.removestream = onPeerConnectionRemoveStream;
+  peerConnection.onremovestream = onPeerConnectionRemoveStream;
 }
 
 function peerConnectionSendMessage(message) {
@@ -153,7 +159,8 @@ function onPeerConnectionIceCandidate(peerConnectionIceEvent){
 
 function onPeerConnectionAddStream(mediaStreamEvent){
   console.log("onPeerConnectionAddStream");
-  videoRemote.src = URL.createObjectURL(mediaStreamEvent.stream);
+  setStreamToElement(mediaStreamEvent.stream, videoRemote);
+  videoRemote.play();
   setStatus(STATES.CONNECTED);
 }
 
@@ -181,4 +188,70 @@ function onPeerConnectionCreateAnswerSuccess(sessionDescription){
 function onPeerConnectionCreateAnswerError(error){
   console.log("onPeerConnectionCreateAnswerError");
   setStatus(STATES.ERROR);
+}
+
+/***********************/
+
+function compatGetUserMedia(constraints, onStartVideoSuccess, onStartVideoError){
+  if(navigator.webkitGetUserMedia){
+    // Chrome
+    navigator.webkitGetUserMedia(constraints, onStartVideoSuccess, onStartVideoError);
+  }else if(navigator.mozGetUserMedia){
+    // Firefox, need media.peerconnection.enabled = true
+    navigator.mozGetUserMedia(constraints, onStartVideoSuccess, onStartVideoError);
+  }else{
+    console.log('Navigator unsupported: getUserMedia');
+    setStatus(STATES.UNSUPPORTED);
+  }
+}
+
+function setStreamToElement(stream, element){
+  if(element.mozSrcObject){
+    // Firefox
+    element.mozSrcObject = stream;
+  }else{
+    element.src = URL.createObjectURL(stream);
+  }
+}
+
+function compatRTCPeerConnection(peerConnectionConfiguration){
+  if(typeof webkitRTCPeerConnection !== 'undefined'){
+    // Chrome
+    return new webkitRTCPeerConnection(peerConnectionConfiguration);
+  }else if(typeof mozRTCPeerConnection !== 'undefined'){
+    // Firefox
+    return new mozRTCPeerConnection(peerConnectionConfiguration);
+  }else{
+    console.log('Navigator unsupported: RTCPeerConnection');
+    setStatus(STATES.UNSUPPORTED);
+    return null;
+  }
+}
+
+function compatRTCSessionDescription(sessionDescription){
+  if(typeof mozRTCSessionDescription !== 'undefined'){
+    // Firefox
+    return new mozRTCSessionDescription(sessionDescription);
+  }else if(typeof RTCSessionDescription !== 'undefined'){
+    // Chrome
+    return new RTCSessionDescription(sessionDescription);
+  }else{
+    console.log('Navigator unsupported: RTCSessionDescription');
+    setStatus(STATES.UNSUPPORTED);
+    return null;
+  }
+}
+
+function compatRTCIceCandidate(candidateInitDict){
+  if(typeof mozRTCIceCandidate !== 'undefined'){
+    // Firefox
+    return new mozRTCIceCandidate(candidateInitDict);
+  }else if(typeof RTCIceCandidate !== 'undefined'){
+    // Chrome
+    return new RTCIceCandidate(candidateInitDict);
+  }else{
+    console.log('Navigator unsupported: RTCIceCandidate');
+    setStatus(STATES.UNSUPPORTED);
+    return null;
+  }
 }
