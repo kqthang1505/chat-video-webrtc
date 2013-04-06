@@ -1,12 +1,12 @@
 chat video WebRTC
 =================
 
-Simple chat video using HTML5 WebRTC and NodeJS.
+Simple chat video using WebRTC and NodeJS.
 
 Installation
 ------------
 
-Set your server IP address in `server/js/john.js` in the variable `webSocketServer`;
-
-    npm install websocket
+    npm install
     node index.js
+
+And go on `http://127.0.0.1:3000`

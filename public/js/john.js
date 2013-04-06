@@ -11,7 +11,7 @@ var videoRemote = document.getElementById('remotevid');
 
 /***********************/
 
-var webSocketServer = "ws://127.0.0.1:8080";
+var webSocketServer = "ws://" + window.location.hostname + ":3000";
 var peerConnectionConfiguration = { iceServers: [{ url: 'stun:stun.l.google.com:19302' }] };
 
 var STATES = { WAITING: 'Waiting other client', IN_PROGRESS: 'Connection in progress...', CONNECTED: 'Connected', ERROR: 'Error', UNSUPPORTED: 'Your navigator is unsupported' };
@@ -23,8 +23,6 @@ var webSocket;
 var peerConnection;
 
 /***********************/
-
-startVideo();
 
 function setStatus(state){
   statusBar.innerHTML = state;
@@ -255,3 +253,13 @@ function compatRTCIceCandidate(candidateInitDict){
     return null;
   }
 }
+
+document.addEventListener('DOMContentLoaded', function (){
+  statusBar = document.getElementById('status');
+  clientsCount = document.getElementById('client_count');
+
+  videoLocal = document.getElementById('sourcevid');
+  videoRemote = document.getElementById('remotevid');
+
+  startVideo();
+});

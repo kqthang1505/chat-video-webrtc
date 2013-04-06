@@ -1,15 +1,5 @@
-var http = require('http');
-var router = require('./router');
+var httpServer = require('./httpServer');
+var webSocketServer = require('./webSocketServer');
 
-function start(port){
-	var server = http.createServer(router.route);
-	
-	server.on("listening", function(){
-		console.log("Listening on port " + port);
-	});
-
-	server.listen(port);
-	return server;
-}
-
-exports.start = start;
+var httpServer = httpServer.start(process.env.PORT || 3000);
+webSocketServer.start(httpServer);

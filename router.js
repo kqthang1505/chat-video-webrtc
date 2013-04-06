@@ -15,7 +15,7 @@ function findFile(path, response){
 		path = '/index.html';
 	}
 
-	var filePath = process.cwd() + '/server' + path;
+	var filePath = process.cwd() + '/public' + path;
 	fs.exists(filePath, function(exists){
 		if(exists){
 			renderFile(path, response, filePath);

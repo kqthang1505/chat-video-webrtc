@@ -28,11 +28,11 @@ function onConnect(webSocketConnection){
 	console.log("New client - " + (connections.length + 1) + ' clients');
 
 	webSocketConnection['connectionId'] = lastConnectionId++;
-    connections.push(webSocketConnection);
+	connections.push(webSocketConnection);
 
-    webSocketConnection.on('message', onMessage);
+	webSocketConnection.on('message', onMessage);
 
-    addConnectionToWaitingList(webSocketConnection);
+	addConnectionToWaitingList(webSocketConnection);
 }
 
 function onClose(webSocketConnection, closeReason, description){
@@ -73,19 +73,18 @@ function addConnectionToWaitingList(webSocketConnection){
 
 function onMessage(message){
     try{
-    	// Ignore user without partner
+    	// Ignore user without partner, when someone disconnected from room
     	if(!this['partnerConnection']){
-    		console.log('User without partner receive message');
     		return;
     	}
 
-    	// Ignore no utf8 message
+		// Ignore no utf8 message
 		if(message.type != 'utf8'){
 			return;
 		}
 
-	    var data = message.utf8Data;
-	    var json = JSON.parse(data);
+		var data = message.utf8Data;
+		var json = JSON.parse(data);
 
         if(json['type'] == 'offer' || json['type'] == 'answer' || json['type'] == 'candidate'){
         	this['partnerConnection'].send(data);
