@@ -7,6 +7,6 @@ Installation
 ------------
 
     npm install
-    node index.js
+    node server
 
 And go on `http://127.0.0.1:3000`
